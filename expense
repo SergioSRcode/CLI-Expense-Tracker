@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 
 const { Client } = require('pg');
-const { argv } = require('node:process');
-
-let client = new Client({ database: 'expenses'});
+const client = new Client({
+    database: 'expenses'
+});
 
 const HELP = `An expense recording system
 
@@ -13,59 +13,61 @@ add AMOUNT MEMO [DATE] - record a new expense
 clear - delete all expenses
 list - list all expenses
 delete NUMBER - remove expense with id NUMBER
-serach QUERY - list expenses with a matching memo field`;
+search QUERY - list expenses with a matching memo field`
 
 function displayHelp() {
   console.log(HELP);
-}
-
-async function listExpenses() {
-  let data = await client.query(`SELECT * FROM expenses ORDER BY created_on`);
-
-  data.rows.forEach(row => {
-    let columns = [
-      `${row.id}`.padStart(3),
-      row.created_on.toDateString().padStart(10),
-      row.amount.padStart(12),
-      row.memo
-    ];
-
-    console.log(columns.join(' | '));
-  });
-}
-
-async function addExpenses(amount, memo) {
-  let date = new Date();
-  date = date.toLocaleDateString();
-
-  try {
-    await client.query(`
-        INSERT INTO expenses (amount, memo, created_on)
-          VALUES (${amount}, '${memo}', '${date}')`);
-  } catch(err) {
-    console.log('You must provide an amount and memo');
-  }
-}
+};
 
 function logAndExit(err) {
   console.log(err);
   process.exit(1);
-}
+};
 
-async function runApp() {
-  await client.connect();
-  let command = (argv[2] || "").toLowerCase();
+async function listExpenses() {
+  await client.connect().catch(err => logAndExit(err));
 
-  if (command === 'list') {
-    await listExpenses();
-  } else if (command === 'add') {
-    await addExpenses(argv[3], argv[4]);
+  let res = await client.query("SELECT * FROM expenses ORDER BY created_on ASC")
+                        .catch(err => logAndExit(err));
+
+  res.rows.forEach(tuple => {
+    let columns = [
+      `${tuple.id}`.padStart(3),
+      tuple.created_on.toDateString().padStart(10),
+      tuple.amount.padStart(12),
+      tuple.memo
+    ];
+
+    console.log(columns.join(' | '));
+  });
+
+  await client.end().catch(err => logAndExit(err));
+};
+
+async function addExpense(amount, memo) {
+  await client.connect().catch(err => logAndExit(err));
+  let date = new Date();
+  date = date.toLocaleDateString();
+
+  await client.query(`INSERT INTO expenses (amount, memo, created_on)
+    VALUES (${amount}, '${memo}', '${date}')`).catch(err => logAndExit(err));
+
+  await client.end().catch(err => logAndExit(err));
+};
+
+let args = process.argv;
+let command = args[2];
+
+if (command === 'list') {
+  listExpenses();
+} else if (command === 'add') {
+  let amount = args[3];
+  let memo = args[4];
+  if (amount && memo) {
+    addExpense(amount, memo);
   } else {
-    displayHelp();
+    console.log('You must provide an amount and memo.')
   }
-
-  await client.end();
+} else {
+  displayHelp();
 }
-
-runApp();
-
