@@ -49,8 +49,10 @@ async function addExpense(amount, memo) {
   let date = new Date();
   date = date.toLocaleDateString();
 
-  await client.query(`INSERT INTO expenses (amount, memo, created_on)
-    VALUES (${amount}, '${memo}', '${date}')`).catch(err => logAndExit(err));
+  let queryText = 'INSERT INTO expenses (amount, memo, created_on) VALUES ($1, $2, $3)';
+  let queryValues = [amount, memo, date];
+  await client.query(queryText, queryValues)
+              .catch(err => logAndExit(err));
 
   await client.end().catch(err => logAndExit(err));
 };
