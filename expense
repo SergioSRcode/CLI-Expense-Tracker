@@ -1,12 +1,28 @@
 #!/usr/bin/env node
 
 const { Client } = require('pg');
+const { argv } = require('node:process');
+
 let client = new Client({ database: 'expenses'});
 
-async function logQuery(query) {
+const HELP = `An expense recording system
+
+Commands:
+
+add AMOUNT MEMO [DATE] - record a new expense
+clear - delete all expenses
+list - list all expenses
+delete NUMBER - remove expense with id NUMBER
+serach QUERY - list expenses with a matching memo field`;
+
+function displayHelp() {
+  console.log(HELP);
+}
+
+async function listExpenses() {
   await client.connect();
-  
-  let data = await client.query(query);
+
+  let data = await client.query(`SELECT * FROM expenses ORDER BY created_on`);
 
   data.rows.forEach(row => {
     let columns = [
@@ -19,9 +35,18 @@ async function logQuery(query) {
     console.log(columns.join(' | '));
   });
 
-  client.end();
+  await client.end();
 }
 
-logQuery(`
-  SELECT * FROM expenses ORDER BY created_on
-  `);
+function runApp() {
+  let command = argv[2] || "";
+
+  if (command.toLowerCase() === 'list') {
+    listExpenses();
+  } else {
+    displayHelp();
+  }
+}
+
+runApp();
+
