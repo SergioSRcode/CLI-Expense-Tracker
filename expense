@@ -20,8 +20,6 @@ function displayHelp() {
 }
 
 async function listExpenses() {
-  await client.connect();
-
   let data = await client.query(`SELECT * FROM expenses ORDER BY created_on`);
 
   data.rows.forEach(row => {
@@ -34,18 +32,34 @@ async function listExpenses() {
 
     console.log(columns.join(' | '));
   });
-
-  await client.end();
 }
 
-function runApp() {
-  let command = argv[2] || "";
+async function addExpenses(amount, memo) {
+  let date = new Date();
+  date = date.toLocaleDateString();
 
-  if (command.toLowerCase() === 'list') {
-    listExpenses();
+  try {
+    await client.query(`
+        INSERT INTO expenses (amount, memo, created_on)
+          VALUES (${amount}, '${memo}', '${date}')`);
+  } catch {
+    console.log('You must provide an amount and memo');
+  }
+}
+
+async function runApp() {
+  await client.connect();
+  let command = (argv[2] || "").toLowerCase();
+
+  if (command === 'list') {
+    await listExpenses();
+  } else if (command === 'add') {
+    await addExpenses(argv[3], argv[4]);
   } else {
     displayHelp();
   }
+
+  await client.end();
 }
 
 runApp();
