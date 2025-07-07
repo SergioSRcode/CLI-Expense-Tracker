@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+const READLINE = require('readline');
 const { Client } = require('pg');
 
 function logAndExit(err) {
@@ -49,17 +50,26 @@ class ExpenseData {
   async deleteExpense(id) {
     await this.client.connect().catch(err => logAndExit(err));
 
-    let queryText = 'SELECT * FROM expenses WHERE id = $1';
+    let queryText = 'SELECT * FROM expenses WHERE id = $1'
     let res = await this.client.query(queryText, [id]).catch(err => logAndExit(err));
 
     if (res.rowCount === 1) {
-      let queryText = 'DELETE FROM expenses WHERE id = $1';
+      let queryText = 'DELETE FROM expenses WHERE id = $1'
       await this.client.query(queryText, [id]).catch(err => logAndExit(err));
       console.log('The following expense has been deleted:');
       this.displayExpenses(res.rows);
     } else {
       console.log(`There is no expense with the id '#${id}'`);
     }
+
+    await this.client.end().catch(err => logAndExit(err));
+  }
+
+  async deleteAllExpenses() {
+    await this.client.connect().catch(err => logAndExit(err));
+
+    await this.client.query('DELETE FROM expenses').catch(err => logAndExit(err));
+    console.log('All expenses have been deleted');
 
     await this.client.end().catch(err => logAndExit(err));
   }
@@ -116,6 +126,18 @@ search QUERY - list expenses with a matching memo field`;
         this.application.searchExpenses(args[3]);
     } else if (command === 'delete') {
       this.application.deleteExpense(args[3]);
+    } else if (command === 'clear') {
+      let rl = READLINE.createInterface({
+        input: process.stdin,
+        output: process.stdout
+      });
+      let questionText = 'This will remove all expenses. Are you sure? (y/n) ';
+      rl.question(questionText, (answer) => {
+        if (answer === 'y') {
+          this.application.deleteAllExpenses();
+        }
+        rl.close();
+      });
     } else {
       this.displayHelp();
     }
