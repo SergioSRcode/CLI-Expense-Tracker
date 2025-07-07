@@ -2,6 +2,8 @@
 
 const { Client } = require('pg');
 const { argv } = require('node:process');
+const readline = require('readline');
+const { stdin: input, stdout: output } = require('node:process');
 
 function logAndExit(err) {
   console.log(err);
@@ -27,11 +29,15 @@ class ExpenseData {
   }
 
   async listExpenses() {
-    let data = await this.client.query(`SELECT * FROM expenses ORDER BY created_on`);
-    this.displayExpenses(data);
+    try {
+      let data = await this.client.query(`SELECT * FROM expenses ORDER BY created_on`);
+      this.displayExpenses(data);
+    } catch(err) {
+      logAndExit(err);
+    }
   }
 
-  async addExpenses(amount, memo) {
+  async addExpense(amount, memo) {
     let date = new Date();
     date = date.toLocaleDateString();
 
@@ -57,7 +63,7 @@ class ExpenseData {
     }
   }
 
-  async deleteExpenses(id) {
+  async deleteExpense(id) {
     try {
       let queryText = `SELECT * FROM expenses WHERE id = $1`;
       let data = await this.client.query(queryText, [id]);
@@ -74,6 +80,16 @@ class ExpenseData {
       logAndExit(err);
     }
   }
+
+  async deleteAllExpenses() {
+    try {
+      let queryText = `DELETE FROM expenses`;
+      await this.client.query(queryText);
+      console.log('All expenses have been deleted');
+    } catch(err) {
+      logAndExit(err);
+    }
+  }
 }
 
 class CLI {
@@ -86,7 +102,7 @@ add AMOUNT MEMO [DATE] - record a new expense
 clear - delete all expenses
 list - list all expenses
 delete NUMBER - remove expense with id NUMBER
-serach QUERY - list expenses with a matching memo field`;
+search QUERY - list expenses with a matching memo field`;
   }
 
   constructor() {
@@ -106,14 +122,30 @@ serach QUERY - list expenses with a matching memo field`;
       await this.expenseData.listExpenses();
     } else if (command === 'add') {
       if (argv[3] && argv[4]) {
-        await this.expenseData.addExpenses(argv[3], argv[4]);
+        await this.expenseData.addExpense(argv[3], argv[4]);
       } else {
         console.log('You must provide an amount and memo');
       }
     } else if (command === 'search') {
       await this.expenseData.searchExpenses(argv[3]);
     } else if (command === 'delete') {
-      await this.expenseData.deleteExpenses(argv[3]);
+      await this.expenseData.deleteExpense(argv[3]);
+    } else if (command === 'clear') {
+      // The promise allows 'deleteAllExpenses' to run before the client connection closes.
+      await new Promise((resolve) => {
+        const rl = readline.createInterface({ input, output });
+        let questionText = 'This will remove all expenses. Are you sure? (enter y to confirm)\n';
+        
+        rl.question(questionText, async (answer) => {
+          if (answer.toLowerCase() === 'y') {
+            await this.expenseData.deleteAllExpenses();
+          } else {
+            console.log('Clearing aborted');
+          }
+          rl.close();
+          resolve();
+        });
+      });
     } else {
       this.displayHelp();
     }
