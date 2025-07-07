@@ -13,7 +13,7 @@ class ExpenseData {
     this.client = client;
   }
 
-    displayExpenses(data) {
+  displayExpenses(data) {
     data.rows.forEach(row => {
       let columns = [
         `${row.id}`.padStart(3),
@@ -41,7 +41,6 @@ class ExpenseData {
       
       await this.client.query(queryText, queryValues);
     } catch(err) {
-      console.log('You must provide an amount and memo');
       logAndExit(err);
     }
   }
@@ -88,7 +87,11 @@ serach QUERY - list expenses with a matching memo field`;
     if (command === 'list') {
       await this.expenseData.listExpenses();
     } else if (command === 'add') {
-      await this.expenseData.addExpenses(argv[3], argv[4]);
+      if (argv[3] && argv[4]) {
+        await this.expenseData.addExpenses(argv[3], argv[4]);
+      } else {
+        console.log('You must provide an amount and memo');
+      }
     } else if (command === 'search') {
       await this.expenseData.searchExpenses(argv[3]);
     } else {
