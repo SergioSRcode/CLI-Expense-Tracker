@@ -46,6 +46,24 @@ class ExpenseData {
     await this.client.end().catch(err => logAndExit(err));
   }
 
+  async deleteExpense(id) {
+    await this.client.connect().catch(err => logAndExit(err));
+
+    let queryText = 'SELECT * FROM expenses WHERE id = $1';
+    let res = await this.client.query(queryText, [id]).catch(err => logAndExit(err));
+
+    if (res.rowCount === 1) {
+      let queryText = 'DELETE FROM expenses WHERE id = $1';
+      await this.client.query(queryText, [id]).catch(err => logAndExit(err));
+      console.log('The following expense has been deleted:');
+      this.displayExpenses(res.rows);
+    } else {
+      console.log(`There is no expense with the id '#${id}'`);
+    }
+
+    await this.client.end().catch(err => logAndExit(err));
+  }
+
   displayExpenses(expenses) {
     expenses.forEach(tuple => {
       let columns = [
@@ -96,6 +114,8 @@ search QUERY - list expenses with a matching memo field`;
       }
     } else if (command === 'search') {
         this.application.searchExpenses(args[3]);
+    } else if (command === 'delete') {
+      this.application.deleteExpense(args[3]);
     } else {
       this.displayHelp();
     }
