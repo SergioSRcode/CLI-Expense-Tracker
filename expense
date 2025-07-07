@@ -3,9 +3,50 @@
 const { Client } = require('pg');
 const { argv } = require('node:process');
 
-let client = new Client({ database: 'expenses'});
+function logAndExit(err) {
+  console.log(err);
+  process.exit(1);
+}
 
-const HELP = `An expense recording system
+class ExpenseData {
+  constructor(client) {
+    this.client = client;
+  }
+
+  async listExpenses() {
+    let data = await this.client.query(`SELECT * FROM expenses ORDER BY created_on`);
+
+    data.rows.forEach(row => {
+      let columns = [
+        `${row.id}`.padStart(3),
+        row.created_on.toDateString().padStart(10),
+        row.amount.padStart(12),
+        row.memo
+      ];
+
+      console.log(columns.join(' | '));
+    });
+  }
+
+  async addExpenses(amount, memo) {
+    let date = new Date();
+    date = date.toLocaleDateString();
+
+    try {
+      let queryText = `INSERT INTO expenses (amount, memo, created_on) VALUES ($1, $2, $3)`;
+      let queryValues = [amount, memo, date];
+      
+      await this.client.query(queryText, queryValues);
+    } catch(err) {
+      console.log('You must provide an amount and memo');
+      logAndExit(err);
+    }
+  }
+}
+
+class CLI {
+  static HELP() {
+    return `An expense recording system
 
 Commands:
 
@@ -14,60 +55,32 @@ clear - delete all expenses
 list - list all expenses
 delete NUMBER - remove expense with id NUMBER
 serach QUERY - list expenses with a matching memo field`;
+  }
 
-function displayHelp() {
-  console.log(HELP);
-}
+  constructor() {
+    this.client = new Client({ database: 'expenses'});
+    this.expenseData = new ExpenseData(this.client);
+  }
 
-async function listExpenses() {
-  let data = await client.query(`SELECT * FROM expenses ORDER BY created_on`);
+  displayHelp() {
+    console.log(CLI.HELP());
+  }
 
-  data.rows.forEach(row => {
-    let columns = [
-      `${row.id}`.padStart(3),
-      row.created_on.toDateString().padStart(10),
-      row.amount.padStart(12),
-      row.memo
-    ];
+  async runApp() {
+    await this.client.connect();
+    let command = (argv[2] || "").toLowerCase();
 
-    console.log(columns.join(' | '));
-  });
-}
+    if (command === 'list') {
+      await this.expenseData.listExpenses();
+    } else if (command === 'add') {
+      await this.expenseData.addExpenses(argv[3], argv[4]);
+    } else {
+      this.displayHelp();
+    }
 
-async function addExpenses(amount, memo) {
-  let date = new Date();
-  date = date.toLocaleDateString();
-
-  try {
-    let queryText = `INSERT INTO expenses (amount, memo, created_on) VALUES ($1, $2, $3)`;
-    let queryValues = [amount, memo, date];
-    
-    await client.query(queryText, queryValues);
-  } catch(err) {
-    console.log('You must provide an amount and memo');
-    logAndExit(err);
+    await this.client.end();
   }
 }
 
-function logAndExit(err) {
-  console.log(err);
-  process.exit(1);
-}
-
-async function runApp() {
-  await client.connect();
-  let command = (argv[2] || "").toLowerCase();
-
-  if (command === 'list') {
-    await listExpenses();
-  } else if (command === 'add') {
-    await addExpenses(argv[3], argv[4]);
-  } else {
-    displayHelp();
-  }
-
-  await client.end();
-}
-
-runApp();
-
+let cli = new CLI();
+cli.runApp();
