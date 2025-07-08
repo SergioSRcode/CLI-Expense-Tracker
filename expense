@@ -19,7 +19,11 @@ class ExpenseData {
     let res = await this.client.query("SELECT * FROM expenses ORDER BY created_on ASC")
                                .catch(err => logAndExit(err));
 
+    this.displayCount(res.rowCount);
     this.displayExpenses(res.rows);
+    if (res.rowCount > 1) {
+      this.displayTotal(res.rows);
+    }
 
     await this.client.end().catch(err => logAndExit(err));
   }
@@ -42,7 +46,11 @@ class ExpenseData {
     let queryText = 'SELECT * FROM expenses WHERE memo ILIKE $1'
     let res = await this.client.query(queryText, [`%${query}%`])
                                .catch(err => logAndExit(err));
+    this.displayCount(res.rowCount);
     this.displayExpenses(res.rows);
+    if (res.rowCount > 1) {
+      this.displayTotal(res.rows);
+    }
 
     await this.client.end().catch(err => logAndExit(err));
   }
@@ -85,6 +93,23 @@ class ExpenseData {
 
       console.log(columns.join(' | '));
     });
+  }
+
+  displayCount(count) {
+    if (count === 0) {
+      console.log('There are no expenses.');
+    } else {
+      let verb = count > 1 ? 'are' : 'is';
+      let countableNoun = count > 1 ? 'expenses' : 'expense';
+      console.log(`There ${verb} ${count} ${countableNoun}.`);
+    }
+  }
+
+  displayTotal(expenses) {
+    let total = expenses.reduce((accumulator, row) => accumulator + Number(row.amount), 0);
+
+    console.log('-'.repeat(50));
+    console.log(`Total ${String(total).padStart(30)}`);
   }
 }
 
