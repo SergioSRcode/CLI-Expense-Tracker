@@ -30,9 +30,14 @@ class ExpenseData {
     console.log(`There ${verb} ${count} ${noun}.`);
   }
 
-  displayExpenses(data, sum = 23.22) {
+  getTotalAmount(allExpenses) {
+    return allExpenses.reduce((acc, row) => acc + Number(row.amount), 0).toFixed(2);
+  }
+
+  displayExpenses(data) {
     if (data.rows.length > 0) {
       this.displayCount(data.rows.length);
+
       data.rows.forEach(row => {
         let columns = [
           `${row.id}`.padStart(3),
@@ -43,12 +48,12 @@ class ExpenseData {
 
         console.log(columns.join(' | '));
     });
-
-      console.log(`Total ${String(sum).padStart(30)}`);
+      
+      console.log('-'.repeat(50));
+      console.log(`Total ${String(this.getTotalAmount(data.rows)).padStart(30)}`);
     } else {
       console.log('There are no expenses.');
     }
-    
   }
 
   async listExpenses() {
@@ -138,42 +143,46 @@ search QUERY - list expenses with a matching memo field`;
   }
 
   async runApp() {
-    await this.client.connect();
-    let command = (argv[2] || "").toLowerCase();
+    try {
+      await this.client.connect();
+      let command = (argv[2] || "").toLowerCase();
 
-    if (command === 'list') {
-      await this.expenseData.listExpenses();
-    } else if (command === 'add') {
-      if (argv[3] && argv[4]) {
-        await this.expenseData.addExpense(argv[3], argv[4]);
-      } else {
-        console.log('You must provide an amount and memo');
-      }
-    } else if (command === 'search') {
-      await this.expenseData.searchExpenses(argv[3]);
-    } else if (command === 'delete') {
-      await this.expenseData.deleteExpense(argv[3]);
-    } else if (command === 'clear') {
-      // The promise allows 'deleteAllExpenses' to run before the client connection closes.
-      await new Promise((resolve) => {
-        const rl = readline.createInterface({ input, output });
-        let questionText = 'This will remove all expenses. Are you sure? (enter y to confirm)\n';
-        
-        rl.question(questionText, async (answer) => {
-          if (answer.toLowerCase() === 'y') {
-            await this.expenseData.deleteAllExpenses();
-          } else {
-            console.log('Clearing aborted');
-          }
-          rl.close();
-          resolve();
+      if (command === 'list') {
+        await this.expenseData.listExpenses();
+      } else if (command === 'add') {
+        if (argv[3] && argv[4]) {
+          await this.expenseData.addExpense(argv[3], argv[4]);
+        } else {
+          console.log('You must provide an amount and memo');
+        }
+      } else if (command === 'search') {
+        await this.expenseData.searchExpenses(argv[3]);
+      } else if (command === 'delete') {
+        await this.expenseData.deleteExpense(argv[3]);
+      } else if (command === 'clear') {
+        // The promise allows 'deleteAllExpenses' to run before the client connection closes.
+        await new Promise((resolve) => {
+          const rl = readline.createInterface({ input, output });
+          let questionText = 'This will remove all expenses. Are you sure? (enter y to confirm)\n';
+          
+          rl.question(questionText, async (answer) => {
+            if (answer.toLowerCase() === 'y') {
+              await this.expenseData.deleteAllExpenses();
+            } else {
+              console.log('Clearing aborted');
+            }
+            rl.close();
+            resolve();
+          });
         });
-      });
-    } else {
-      this.displayHelp();
+      } else {
+        this.displayHelp();
+      }
+    } catch(err) {
+      logAndExit(err);
+    } finally {
+      await this.client.end();
     }
-
-    await this.client.end();
   }
 }
 
