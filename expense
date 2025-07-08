@@ -15,17 +15,40 @@ class ExpenseData {
     this.client = client;
   }
 
-  displayExpenses(data) {
-    data.rows.forEach(row => {
-      let columns = [
-        `${row.id}`.padStart(3),
-        row.created_on.toDateString().padStart(10),
-        row.amount.padStart(12),
-        row.memo
-      ];
+  displayCount(count) {
+    let verb;
+    let noun;
+    
+    if (count === 1) {
+      verb = 'is';
+      noun = 'expense';
+    } else {
+      verb = 'are';
+      noun = 'expenses';
+    }
 
-      console.log(columns.join(' | '));
+    console.log(`There ${verb} ${count} ${noun}.`);
+  }
+
+  displayExpenses(data, sum = 23.22) {
+    if (data.rows.length > 0) {
+      this.displayCount(data.rows.length);
+      data.rows.forEach(row => {
+        let columns = [
+          `${row.id}`.padStart(3),
+          row.created_on.toDateString().padStart(10),
+          row.amount.padStart(12),
+          row.memo
+        ];
+
+        console.log(columns.join(' | '));
     });
+
+      console.log(`Total ${String(sum).padStart(30)}`);
+    } else {
+      console.log('There are no expenses.');
+    }
+    
   }
 
   async listExpenses() {
