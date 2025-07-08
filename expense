@@ -15,6 +15,28 @@ class ExpenseData {
     this.client = client;
   }
 
+  async setupSchema() {
+    try {
+      let tableExistsQuery = `SELECT COUNT(*) FROM information_schema.tables
+      WHERE table_schema = 'public' AND table_name = 'expenses'`;
+
+      let tableCreationQuery = `CREATE TABLE expenses (
+        id serial PRIMARY KEY,
+        amount numeric(6,2) NOT NULL CHECK (amount >= 0.01),
+        memo text NOT NULL,
+        created_on date NOT NULL
+      )`;
+
+      let data = await this.client.query(tableExistsQuery);
+
+      if (data.rows[0].count === '0') {
+        await this.client.query(tableCreationQuery);
+      }
+    } catch(err) {
+      logAndExit(err);
+    }
+  }
+
   displayCount(count) {
     let verb;
     let noun;
@@ -145,6 +167,7 @@ search QUERY - list expenses with a matching memo field`;
   async runApp() {
     try {
       await this.client.connect();
+      await this.expenseData.setupSchema();
       let command = (argv[2] || "").toLowerCase();
 
       if (command === 'list') {
